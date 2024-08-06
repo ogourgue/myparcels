@@ -5,7 +5,7 @@ import numpy as np
 #########################################################
 
 
-def compute_w(depth, lat, lon, u, v):
+def compute_w(depth, lat, lon, bathy, u, v, zeta):
 
     # East neighbor of zonal velocity.
     ue = np.zeros(u.shape)
@@ -40,21 +40,20 @@ def compute_w(depth, lat, lon, u, v):
     dy *= 1852 * 60
 
     # Vertical coordinates at cell edges.
-    # Todo: This will vary in time is we take the water surface elevation into
-    #       account.
-    zs = np.zeros(len(depth) + 1)
+    zs = np.zeros((u.shape[0], len(depth) + 1, len(lat), len(lon)))
+    zs[:, 0, :, :] = zeta                                       # Water surface.
     for i in range(len(depth) - 1):
-        zs[i + 1] = .5 * (depth[i] + depth[i + 1])
-    zs[-1] = depth[-1] + .5 * (depth[-1] - zs[-2])
+        zs[:, i + 1, :, :] = .5 * (depth[i] + depth[i + 1])      # Water column.
+    zs[:, -1, :, :] = bathy   # Bottom.
 
     # Vertical grid size between cell edges.
-    dzs = np.zeros(len(zs) - 1)
-    dzs = zs[1:] - zs[:-1]
+    dzs = np.zeros(u.shape)
+    dzs = zs[:, 1:, :, :] - zs[:, :-1, :, :]
 
     # Lateral contributions.
     dudx = (ue - uw) / (2 * dx)
     dvdy = (vn - vs) / (2 * dy)
-    dws = dzs.reshape(1, -1, 1, 1) * (dudx + dvdy)
+    dws = dzs * (dudx + dvdy)
 
     # Initialize vertical velocity.
     w = np.zeros(u.shape) + np.nan
@@ -64,17 +63,14 @@ def compute_w(depth, lat, lon, u, v):
         for j in range(len(lat)):
 
             # Initialize vertical velocity at cell edges.
-            ws = np.zeros((u.shape[0], u.shape[1] + 1))
+            ws = np.zeros((u.shape[0], len(depth) + 1))
 
             # If not land.
             if np.mean(np.isnan(u[:, :, j, i])) < 1:
 
                 # Vertical velocity is zero at the surface.
-                # Todo: The surface is not necessarily z = 0.
-                # ws[:, 0] = 0
-
-                # Loop over vertical cell edges.
-                for k in range(1, ws.shape[1]):
+                # Loop over other vertical cell edges.
+                for k in range(1, len(depth) + 1):
 
                     # If above bottom.
                     if np.mean(np.isnan(u[:, k - 1, j, i])) < 1:
@@ -86,7 +82,7 @@ def compute_w(depth, lat, lon, u, v):
                 for l in range(ws.shape[0]):
 
                     if np.mean(np.isnan(ws[l, :])) < 1:
-                        w[l, :, j, i] = np.interp(depth, zs, ws[l, :])
+                        w[l, :, j, i] = np.interp(depth, zs[l, :, j, i], ws[l, :])
 
     # Vertical velocity should be NaN where horizontal velocity is.
     w[np.isnan(u)] = np.nan
