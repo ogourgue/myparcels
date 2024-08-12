@@ -7,6 +7,8 @@ import numpy as np
 
 def compute_w(depth, lat, lon, bathy, u, v, zeta):
 
+    # Attention: This function assumes regular spacing for grid coordinates.
+
     # East neighbor of zonal velocity.
     ue = np.zeros(u.shape)
     ue[:, :, :, :-1] = u[:, :, :, 1:]   # Domain.
@@ -31,7 +33,7 @@ def compute_w(depth, lat, lon, bathy, u, v, zeta):
     vs[:, :, 0, :] = v[:, :, 0, :]      # South boundary.
     vs[np.isnan(vs)] = -v[np.isnan(vs)] # Land.
 
-    # Horizontal grid size in degrees.
+    # Horizontal grid size in degrees (assumes regular spacing).
     dx = np.zeros(u.shape[-2:]) + (lon[-1] - lon[0]) / (len(lon) - 1)
     dy = np.zeros(u.shape[-2:]) + (lat[-1] - lat[0]) / (len(lat) - 1)
 
@@ -80,9 +82,8 @@ def compute_w(depth, lat, lon, bathy, u, v, zeta):
 
                 # Vertical velocity at cell centers (interpolation).
                 for l in range(ws.shape[0]):
-
                     if np.mean(np.isnan(ws[l, :])) < 1:
-                        w[l, :, j, i] = np.interp(depth, zs[l, :, j, i], ws[l, :])
+                        w[l,:,j,i] = np.interp(depth, zs[l, :, j, i], ws[l, :])
 
     # Vertical velocity should be NaN where horizontal velocity is.
     w[np.isnan(u)] = np.nan
