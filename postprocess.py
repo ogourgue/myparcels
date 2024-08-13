@@ -15,7 +15,6 @@ def compute_hprob(LON, LAT, lon, lat):
     # Initialize probability density.
     P = np.zeros((len(LAT), len(LON)))
 
-    # Todo: This is too slow!
     # Loop over horizontal grid cells.
     for i in range(len(LON)):
         for j in range(len(LAT)):
